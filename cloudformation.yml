@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'CloudFormation template to deploy a backend server on EC2'
+Description: 'CloudFormation template to deploy a backend server on EC2 with improved user data script'
 
 Parameters:
   InstanceType:
@@ -12,15 +12,11 @@ Parameters:
       - t2.medium
     ConstraintDescription: Must be a valid EC2 instance type
 
-  KeyName:
-    Description: Name of an existing EC2 KeyPair to enable SSH access (optional)
-    Type: String
-    Default: ''
-
   GitHubRepo:
     Description: GitHub repository URL to clone
     Type: String
-    Default: ''
+    Default: 'https://github.com/username/repository.git'
+    # Replace with your actual repository before deploying
 
 Resources:
   BackendSecurityGroup:
@@ -47,61 +43,92 @@ Resources:
       InstanceType: !Ref InstanceType
       SecurityGroups:
         - !Ref BackendSecurityGroup
-      KeyName: !If [HasKeyName, !Ref KeyName, !Ref 'AWS::NoValue']
-      ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', AMI]
+      ImageId: ami-0261755bbcb8c4a84  # Ubuntu 22.04 LTS in us-east-1
       Tags:
         - Key: Name
           Value: backend-server
       UserData:
         Fn::Base64: !Sub |
-          #!/bin/bash -xe
-          # Update system
-          apt-get update -y
-          apt-get upgrade -y
+          #!/bin/bash
           
-          # Install dependencies
-          apt-get install -y git nodejs npm
+          # Enable detailed logging
+          exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+          
+          echo "Starting user data script execution"
+          
+          # Detect Linux distribution and use appropriate package manager
+          if [ -f /etc/debian_release ] || [ -f /etc/lsb-release ]; then
+            echo "Debian/Ubuntu detected, using apt"
+            # Update system
+            apt-get update -y || echo "apt-get update failed"
+            apt-get install -y git nodejs npm || echo "Failed to install dependencies with apt"
+          elif [ -f /etc/redhat-release ]; then
+            echo "RHEL/CentOS/Amazon Linux detected, using yum"
+            # For Amazon Linux, RHEL, CentOS
+            yum update -y || echo "yum update failed"
+            curl -sL https://rpm.nodesource.com/setup_16.x | bash - || echo "NodeSource setup failed"
+            yum install -y git nodejs || echo "Failed to install dependencies with yum"
+          elif [ -f /etc/amazon-linux-release ]; then
+            echo "Amazon Linux 2 detected"
+            yum update -y || echo "yum update failed"
+            curl -sL https://rpm.nodesource.com/setup_16.x | bash - || echo "NodeSource setup failed"
+            yum install -y git nodejs || echo "Failed to install dependencies with yum"
+          else
+            echo "Unknown Linux distribution"
+            exit 1
+          fi
+          
+          echo "Dependencies installed, cloning repository"
           
           # Clone repository
           mkdir -p /app
           cd /app
-          git clone ${GitHubRepo} .
           
-          # Install dependencies and run server
-          cd /app
-          npm install
-          npm run build
+          echo "Cloning from: ${GitHubRepo}"
+          git clone ${GitHubRepo} . || {
+            echo "Git clone failed with status $?"
+            echo "Trying with --depth 1 option"
+            git clone --depth 1 ${GitHubRepo} . || {
+              echo "Git clone with --depth 1 failed with status $?"
+              exit 1
+            }
+          }
           
-          # Setup PM2 to manage the Node process
-          npm install -g pm2
-          pm2 start npm --name "backend" -- start
-          pm2 startup
-          pm2 save
+          echo "Repository cloned, installing dependencies"
           
-          # Signal the status from cfn-init
-          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource BackendServer --region ${AWS::Region}
-
-Conditions:
-  HasKeyName: !Not [!Equals [!Ref KeyName, '']]
-
-Mappings:
-  RegionMap:
-    us-east-1:
-      AMI: ami-0261755bbcb8c4a84  # Ubuntu 22.04 LTS in us-east-1
-    us-east-2:
-      AMI: ami-0430580de6244e02e  # Ubuntu 22.04 LTS in us-east-2
-    us-west-1:
-      AMI: ami-0a0409af1cb831414  # Ubuntu 22.04 LTS in us-west-1
-    us-west-2:
-      AMI: ami-0efcece6bed30fd98  # Ubuntu 22.04 LTS in us-west-2
-    eu-west-1:
-      AMI: ami-0905a3c97561e0b69  # Ubuntu 22.04 LTS in eu-west-1
-    eu-central-1:
-      AMI: ami-0039da1f3917fa8e3  # Ubuntu 22.04 LTS in eu-central-1
-    ap-southeast-1:
-      AMI: ami-078c1149d8ad719a7  # Ubuntu 22.04 LTS in ap-southeast-1
-    ap-southeast-2:
-      AMI: ami-0310483fb2b488153  # Ubuntu 22.04 LTS in ap-southeast-2
+          # List directory contents to verify clone
+          ls -la
+          
+          # Install dependencies
+          npm install || echo "npm install failed with status $?"
+          
+          # Check if build script exists in package.json
+          if grep -q "\"build\":" package.json; then
+            echo "Running build script"
+            npm run build || echo "npm build failed with status $?"
+          else
+            echo "No build script found in package.json, skipping"
+          fi
+          
+          echo "Installing PM2"
+          
+          # Install PM2 globally
+          npm install -g pm2 || echo "PM2 installation failed with status $?"
+          
+          # Determine start script
+          START_SCRIPT="start"
+          if grep -q "\"dev\":" package.json; then
+            START_SCRIPT="dev"
+          fi
+          
+          echo "Starting application with PM2 using '${START_SCRIPT}' script"
+          
+          # Start the application with PM2
+          pm2 start npm --name "backend" -- run ${START_SCRIPT} || echo "Failed to start app with PM2, status $?"
+          pm2 save || echo "PM2 save failed with status $?"
+          pm2 startup || echo "PM2 startup failed with status $?"
+          
+          echo "User data script execution completed"
 
 Outputs:
   InstanceId:
