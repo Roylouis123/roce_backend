@@ -8,17 +8,9 @@ provider:
   environment:
     REGION: ${self:provider.region}
 
+# Functions are now included from external file
 functions:
-  getUserDetails:
-    handler: lambda/getUserDetails.handler
-    events:
-      - http:
-          path: /user/details
-          method: post
-          cors: true
-          authorizer:
-            type: COGNITO_USER_POOLS
-            authorizerId: !Ref ApiAuthorizer
+  - ${file(resources/lambda.yml)}
 
 resources:
   Resources:
