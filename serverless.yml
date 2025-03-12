@@ -1,0 +1,90 @@
+service: aayu-health-care-backend
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1 # Change as needed
+  stage: ${opt:stage, 'dev'}
+  environment:
+    REGION: ${self:provider.region}
+
+resources:
+  Resources:
+    # Cognito User Pool
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: ${self:service}-user-pool-${self:provider.stage}
+        UsernameAttributes:
+          - phone_number
+        AutoVerifiedAttributes:
+          - phone_number
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireLowercase: true
+            RequireNumbers: true
+            RequireSymbols: false
+            RequireUppercase: true
+        Schema:
+          - Name: phone_number
+            AttributeDataType: String
+            Mutable: true
+            Required: true
+        SmsConfiguration:
+          SnsCallerArn: !GetAtt SNSRole.Arn
+          ExternalId: ${self:service}-external-id-${self:provider.stage}
+        MfaConfiguration: OFF
+        AccountRecoverySetting:
+          RecoveryMechanisms:
+            - Name: verified_phone_number
+              Priority: 1
+
+    # Cognito User Pool Client
+    CognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: ${self:service}-client-${self:provider.stage}
+        UserPoolId: !Ref CognitoUserPool
+        ExplicitAuthFlows:
+          - ALLOW_USER_PASSWORD_AUTH
+          - ALLOW_REFRESH_TOKEN_AUTH
+        GenerateSecret: false
+        AccessTokenValidity: 5 # 5 hours
+        IdTokenValidity: 5
+        TokenValidityUnits:
+          AccessToken: hours
+          IdToken: hours
+        RefreshTokenValidity: 30 # 30 days
+        PreventUserExistenceErrors: ENABLED
+
+    # SNS Role for SMS
+    SNSRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: cognito-idp.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: SNSPolicy
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - sns:Publish
+                  Resource: "*"
+
+  Outputs:
+    UserPoolId:
+      Value: !Ref CognitoUserPool
+      Export:
+        Name: ${self:service}-UserPoolId-${self:provider.stage}
+    UserPoolClientId:
+      Value: !Ref CognitoUserPoolClient
+      Export:
+        Name: ${self:service}-UserPoolClientId-${self:provider.stage}

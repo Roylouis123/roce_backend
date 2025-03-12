@@ -1,0 +1,12 @@
+{
+    "name": "aayu-health-care-backend",
+    "version": "1.0.0",
+    "description": "Serverless Auth Service",
+    "scripts": {
+      "deploy": "serverless deploy --stage dev",
+      "remove": "serverless remove --stage dev"
+    },
+    "devDependencies": {
+      "serverless": "^3.38.0"
+    }
+  }
