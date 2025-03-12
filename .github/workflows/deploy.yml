@@ -2,57 +2,70 @@ name: Deploy Backend to EC2
 
 on:
   push:
-    branches:
-      - main  # Runs on pushes to main branch
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      - name: Set Up AWS CLI
-        run: |
-          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set region us-east-1  # Change to your AWS region
-
-      - name: Check if EC2 Instance Exists
-        id: check_ec2
-        run: |
-          INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=MyBackend" \
-                      --query "Reservations[*].Instances[*].InstanceId" --output text)
+    - name: Checkout code
+      uses: actions/checkout@v2
+      
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1  # Change to your preferred region
+        
+    - name: Deploy to EC2
+      run: |
+        # Create EC2 instance with user data script
+        INSTANCE_ID=$(aws ec2 run-instances \
+          --image-id ami-0c55b159cbfafe1f0 \
+          --instance-type t2.micro \
+          --security-groups "default" \
+          --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=backend-server}]' \
+          --user-data "#!/bin/bash
+            # Update system
+            apt update -y && apt upgrade -y
+            
+            # Install dependencies
+            apt install -y git nodejs npm
+            
+            # Clone repository
+            mkdir -p /app
+            cd /app
+            git clone https://github.com/${{ github.repository }}.git .
+            
+            # Install dependencies and run server
+            cd /app
+            npm install
+            npm run build
+            
+            # Setup PM2 to manage the Node process
+            npm install -g pm2
+            pm2 start npm --name \"backend\" -- start
+            pm2 startup
+            pm2 save
+          " \
+          --query 'Instances[0].InstanceId' \
+          --output text)
           
-          if [ -z "$INSTANCE_ID" ]; then
-            echo "EC2 instance not found. Creating a new one..."
-            INSTANCE_ID=$(aws ec2 run-instances --image-id ami-12345678 --instance-type t2.micro \
-              --key-name MyKeyPair --security-groups MySecurityGroup \
-              --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=MyBackend}]' \
-              --query "Instances[0].InstanceId" --output text)
-            echo "Waiting for EC2 instance to initialize..."
-            aws ec2 wait instance-status-ok --instance-ids $INSTANCE_ID
-          else
-            echo "EC2 instance exists: $INSTANCE_ID"
-          fi
-
-          PUBLIC_IP=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID \
-                     --query "Reservations[0].Instances[0].PublicIpAddress" --output text)
-          echo "EC2_PUBLIC_IP=$PUBLIC_IP" >> $GITHUB_ENV
-
-      - name: Debug EC2 Public IP
-        run: echo "EC2 Public IP: ${{ env.EC2_PUBLIC_IP }}"
-
-      - name: Set Up SSH Key
-        run: |
-          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/MyKeyPair.pem
-          chmod 600 ~/.ssh/MyKeyPair.pem
-
-      - name: Deploy Code to EC2
-        run: |
-          echo "Connecting to EC2..."
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/MyKeyPair.pem ec2-user@${{ env.EC2_PUBLIC_IP }} << 'EOF'
-            cd /home/ec2-user/my-backend-repo/scripts
-            bash deploy.sh
-          EOF
+        echo "EC2 instance $INSTANCE_ID created"
+        
+        # Wait for instance to be running
+        aws ec2 wait instance-running --instance-ids $INSTANCE_ID
+        
+        # Get the public IP of the instance
+        PUBLIC_IP=$(aws ec2 describe-instances \
+          --instance-ids $INSTANCE_ID \
+          --query 'Reservations[0].Instances[0].PublicIpAddress' \
+          --output text)
+          
+        echo "Instance is now running with IP: $PUBLIC_IP"
+        
+        # Add IP to GitHub output
+        echo "INSTANCE_IP=$PUBLIC_IP" >> $GITHUB_OUTPUT
