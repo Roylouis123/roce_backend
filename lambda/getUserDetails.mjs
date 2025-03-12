@@ -11,10 +11,6 @@ export const handler = async (event) => {
         },
         body: JSON.stringify({
           message: 'User details retrieved successfully',
-          user: {
-            phone_number: user.phone_number,
-            sub: user.sub,
-          }
         })
       };
       
