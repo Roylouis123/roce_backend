@@ -1,4 +1,4 @@
-name: Deploy Backend to EC2
+name: Deploy Backend with CloudFormation
 
 on:
   push:
@@ -20,65 +20,30 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-1  # Change to your preferred region
         
-    - name: Find latest Ubuntu AMI
-      id: find-ami
+    - name: Deploy CloudFormation stack
       run: |
-        # Find the latest Ubuntu 22.04 LTS AMI
-        AMI_ID=$(aws ec2 describe-images \
-          --owners 099720109477 \
-          --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*" \
-                   "Name=state,Values=available" \
-          --query "sort_by(Images, &CreationDate)[-1].ImageId" \
-          --output text)
-        echo "AMI_ID=$AMI_ID" >> $GITHUB_OUTPUT
-        echo "Using AMI: $AMI_ID"
+        # Upload CloudFormation template to S3
+        TIMESTAMP=$(date +%s)
+        aws s3 mb s3://backend-deployment-$TIMESTAMP --region us-east-1 || true
+        aws s3 cp cloudformation.yml s3://backend-deployment-$TIMESTAMP/
         
-    - name: Deploy to EC2
-      run: |
-        # Create EC2 instance with user data script
-        INSTANCE_ID=$(aws ec2 run-instances \
-          --image-id ${{ steps.find-ami.outputs.AMI_ID }} \
-          --instance-type t2.micro \
-          --security-groups "default" \
-          --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=backend-server}]' \
-          --user-data "#!/bin/bash
-            # Update system
-            apt update -y && apt upgrade -y
-            
-            # Install dependencies
-            apt install -y git nodejs npm
-            
-            # Clone repository
-            mkdir -p /app
-            cd /app
-            git clone https://github.com/${{ github.repository }}.git .
-            
-            # Install dependencies and run server
-            cd /app
-            npm install
-            npm run build
-            
-            # Setup PM2 to manage the Node process
-            npm install -g pm2
-            pm2 start npm --name \"backend\" -- start
-            pm2 startup
-            pm2 save
-          " \
-          --query 'Instances[0].InstanceId' \
+        # Deploy stack
+        STACK_NAME="backend-stack-$TIMESTAMP"
+        aws cloudformation create-stack \
+          --stack-name $STACK_NAME \
+          --template-url https://backend-deployment-$TIMESTAMP.s3.amazonaws.com/cloudformation.yml \
+          --parameters \
+            ParameterKey=GitHubRepo,ParameterValue=https://github.com/${{ github.repository }}.git \
+          --capabilities CAPABILITY_IAM
+        
+        echo "Waiting for stack creation to complete..."
+        aws cloudformation wait stack-create-complete --stack-name $STACK_NAME
+        
+        # Get outputs
+        PUBLIC_IP=$(aws cloudformation describe-stacks \
+          --stack-name $STACK_NAME \
+          --query "Stacks[0].Outputs[?OutputKey=='PublicIP'].OutputValue" \
           --output text)
           
-        echo "EC2 instance $INSTANCE_ID created"
-        
-        # Wait for instance to be running
-        aws ec2 wait instance-running --instance-ids $INSTANCE_ID
-        
-        # Get the public IP of the instance
-        PUBLIC_IP=$(aws ec2 describe-instances \
-          --instance-ids $INSTANCE_ID \
-          --query 'Reservations[0].Instances[0].PublicIpAddress' \
-          --output text)
-          
-        echo "Instance is now running with IP: $PUBLIC_IP"
-        
-        # Add IP to GitHub output
+        echo "Backend server deployed with IP: $PUBLIC_IP"
         echo "INSTANCE_IP=$PUBLIC_IP" >> $GITHUB_OUTPUT

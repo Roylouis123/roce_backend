@@ -1,0 +1,117 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template to deploy a backend server on EC2'
+
+Parameters:
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+    ConstraintDescription: Must be a valid EC2 instance type
+
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access (optional)
+    Type: String
+    Default: ''
+
+  GitHubRepo:
+    Description: GitHub repository URL to clone
+    Type: String
+    Default: ''
+
+Resources:
+  BackendSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH and web application ports
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+
+  BackendServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      SecurityGroups:
+        - !Ref BackendSecurityGroup
+      KeyName: !If [HasKeyName, !Ref KeyName, !Ref 'AWS::NoValue']
+      ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', AMI]
+      Tags:
+        - Key: Name
+          Value: backend-server
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          # Update system
+          apt-get update -y
+          apt-get upgrade -y
+          
+          # Install dependencies
+          apt-get install -y git nodejs npm
+          
+          # Clone repository
+          mkdir -p /app
+          cd /app
+          git clone ${GitHubRepo} .
+          
+          # Install dependencies and run server
+          cd /app
+          npm install
+          npm run build
+          
+          # Setup PM2 to manage the Node process
+          npm install -g pm2
+          pm2 start npm --name "backend" -- start
+          pm2 startup
+          pm2 save
+          
+          # Signal the status from cfn-init
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource BackendServer --region ${AWS::Region}
+
+Conditions:
+  HasKeyName: !Not [!Equals [!Ref KeyName, '']]
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMI: ami-0261755bbcb8c4a84  # Ubuntu 22.04 LTS in us-east-1
+    us-east-2:
+      AMI: ami-0430580de6244e02e  # Ubuntu 22.04 LTS in us-east-2
+    us-west-1:
+      AMI: ami-0a0409af1cb831414  # Ubuntu 22.04 LTS in us-west-1
+    us-west-2:
+      AMI: ami-0efcece6bed30fd98  # Ubuntu 22.04 LTS in us-west-2
+    eu-west-1:
+      AMI: ami-0905a3c97561e0b69  # Ubuntu 22.04 LTS in eu-west-1
+    eu-central-1:
+      AMI: ami-0039da1f3917fa8e3  # Ubuntu 22.04 LTS in eu-central-1
+    ap-southeast-1:
+      AMI: ami-078c1149d8ad719a7  # Ubuntu 22.04 LTS in ap-southeast-1
+    ap-southeast-2:
+      AMI: ami-0310483fb2b488153  # Ubuntu 22.04 LTS in ap-southeast-2
+
+Outputs:
+  InstanceId:
+    Description: ID of the EC2 instance
+    Value: !Ref BackendServer
+  
+  PublicIP:
+    Description: Public IP address of the EC2 instance
+    Value: !GetAtt BackendServer.PublicIp
+  
+  PublicDNS:
+    Description: Public DNS name of the EC2 instance
+    Value: !GetAtt BackendServer.PublicDnsName
