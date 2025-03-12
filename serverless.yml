@@ -1,8 +1,8 @@
-service: aayu-health-care-backend
+service: auth-service
 
 provider:
   name: aws
-  runtime: nodejs20.x
+  runtime: nodejs18.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   environment:
@@ -12,27 +12,24 @@ functions:
   - ${file(resources/lambda.yml)}
 
 resources:
-  Resources:
-    ApiAuthorizer:
-      Type: AWS::ApiGateway::Authorizer
-      Properties:
-        Name: CognitoAuthorizer
-        Type: COGNITO_USER_POOLS
-        IdentitySource: method.request.header.Authorization
-        RestApiId: !Ref ApiGatewayRestApi
-        ProviderARNs:
-          - !GetAtt CognitoUserPool.Arn
+  - ${file(resources/cognito.yml)}
+  - ${file(resources/iam_role.yml)}
+  - Resources:
+      ApiAuthorizer:
+        Type: AWS::ApiGateway::Authorizer
+        Properties:
+          Name: CognitoAuthorizer
+          Type: COGNITO_USER_POOLS
+          IdentitySource: method.request.header.Authorization
+          RestApiId: !Ref ApiGatewayRestApi
+          ProviderARNs:
+            - !GetAtt CognitoUserPool.Arn
 
-    ApiGatewayRestApi:
-      Type: AWS::ApiGateway::RestApi
-      Properties:
-        Name: ${self:service}-api-${self:provider.stage}
+      ApiGatewayRestApi:
+        Type: AWS::ApiGateway::RestApi
+        Properties:
+          Name: ${self:service}-api-${self:provider.stage}
 
-    # Include external resource files using explicit merge
-    <<: [
-      ${file(resources/cognito.yml)},
-      ${file(resources/iam_role.yml)}
-    ]
 
   Outputs:
     UserPoolId:
