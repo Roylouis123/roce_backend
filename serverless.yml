@@ -29,18 +29,16 @@ resources:
         Type: AWS::ApiGateway::RestApi
         Properties:
           Name: ${self:service}-api-${self:provider.stage}
-
-
-  Outputs:
-    UserPoolId:
-      Value: !Ref CognitoUserPool
-      Export:
-        Name: ${self:service}-UserPoolId-${self:provider.stage}
-    UserPoolClientId:
-      Value: !Ref CognitoUserPoolClient
-      Export:
-        Name: ${self:service}-UserPoolClientId-${self:provider.stage}
-    ApiUrl:
-      Value: !Sub "https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com/${self:provider.stage}"
-      Export:
-        Name: ${self:service}-ApiUrl-${self:provider.stage}
+  - Outputs:
+      UserPoolId:
+        Value: !Ref CognitoUserPool
+        Export:
+          Name: ${self:service}-UserPoolId-${self:provider.stage}
+      UserPoolClientId:
+        Value: !Ref CognitoUserPoolClient
+        Export:
+          Name: ${self:service}-UserPoolClientId-${self:provider.stage}
+      ApiUrl:
+        Value: !Sub "https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com/${self:provider.stage}"
+        Export:
+          Name: ${self:service}-ApiUrl-${self:provider.stage}
