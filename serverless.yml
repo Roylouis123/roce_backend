@@ -8,7 +8,6 @@ provider:
   environment:
     REGION: ${self:provider.region}
 
-# Functions are now included from external file
 functions:
   - ${file(resources/lambda.yml)}
 
@@ -29,9 +28,9 @@ resources:
       Properties:
         Name: ${self:service}-api-${self:provider.stage}
 
-  # Include external resource files
-  - ${file(resources/cognito.yml)}
-  - ${file(resources/iam_role.yml)}
+    # Include external resource files
+    ${file(resources/cognito.yml)}
+    ${file(resources/iam_role.yml)}
 
   Outputs:
     UserPoolId:
