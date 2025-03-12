@@ -1,8 +1,8 @@
-service: auth-service
+service: aayu-health-care-backend
 
 provider:
   name: aws
-  runtime: nodejs18.x
+  runtime: nodejs20.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   environment:
@@ -28,9 +28,11 @@ resources:
       Properties:
         Name: ${self:service}-api-${self:provider.stage}
 
-    # Include external resource files
-    ${file(resources/cognito.yml)}
-    ${file(resources/iam_role.yml)}
+    # Include external resource files using explicit merge
+    <<: [
+      ${file(resources/cognito.yml)},
+      ${file(resources/iam_role.yml)}
+    ]
 
   Outputs:
     UserPoolId:
