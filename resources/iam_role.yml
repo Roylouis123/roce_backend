@@ -1,7 +1,9 @@
 Resources:
+  # SNS Role for Cognito SMS
   SNSRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: ${self:service}-sns-role-${self:provider.stage}
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -18,3 +20,43 @@ Resources:
                 Action:
                   - sns:Publish
                 Resource: "*"
+
+  # Authenticated Role for Identity Pool
+  AuthenticatedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ${self:service}-auth-role-${self:provider.stage}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                "cognito-identity.amazonaws.com:aud":
+                  Fn::ImportValue: ${self:service}-${self:provider.stage}-IdentityPoolId
+              "ForAnyValue:StringLike":
+                "cognito-identity.amazonaws.com:amr": authenticated
+      Policies:
+        - PolicyName: ${self:service}-auth-policy-${self:provider.stage}
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - mobileanalytics:PutEvents
+                  - cognito-sync:*
+                  - cognito-identity:*
+                Resource: "*"
+
+Outputs:
+  SNSRoleArn:
+    Value: !GetAtt SNSRole.Arn
+    Export:
+      Name: ${self:service}-${self:provider.stage}-SNSRoleArn
+  AuthRoleArn:
+    Value: !GetAtt AuthenticatedRole.Arn
+    Export:
+      Name: ${self:service}-${self:provider.stage}-AuthRoleArn

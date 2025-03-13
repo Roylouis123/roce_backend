@@ -1,4 +1,5 @@
 Resources:
+  # User Pool with SMS verification
   CognitoUserPool:
     Type: AWS::Cognito::UserPool
     Properties:
@@ -20,14 +21,23 @@ Resources:
           Mutable: true
           Required: true
       SmsConfiguration:
-        SnsCallerArn: !GetAtt SNSRole.Arn
+        SnsCallerArn: ${ssm:/${self:service}/${self:provider.stage}/sns-role-arn}
         ExternalId: ${self:service}-external-id-${self:provider.stage}
       MfaConfiguration: OFF
       AccountRecoverySetting:
         RecoveryMechanisms:
           - Name: verified_phone_number
             Priority: 1
+      VerificationMessageTemplate:
+        SmsMessage: "Your verification code is {####}."
+        DefaultEmailOption: CONFIRM_WITH_CODE
+      SmsVerificationMessage: "Your verification code is {####}."
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+        InviteMessageTemplate:
+          SMSMessage: "Your username is {username} and temporary password is {####}."
 
+  # User Pool Client
   CognitoUserPoolClient:
     Type: AWS::Cognito::UserPoolClient
     Properties:
@@ -44,3 +54,39 @@ Resources:
         IdToken: hours
       RefreshTokenValidity: 30
       PreventUserExistenceErrors: ENABLED
+
+  # Identity Pool
+  CognitoIdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      IdentityPoolName: ${self:service}-identity-pool-${self:provider.stage}
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+        - ClientId: !Ref CognitoUserPoolClient
+          ProviderName: !GetAtt CognitoUserPool.ProviderName
+
+  # Identity Pool Role Attachment
+  CognitoIdentityPoolRoles:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref CognitoIdentityPool
+      Roles:
+        authenticated: ${ssm:/${self:service}/${self:provider.stage}/auth-role-arn}
+      RoleMappings:
+        !Sub "cognito-idp.${aws:region}.amazonaws.com/${CognitoUserPool}:!Ref CognitoUserPoolClient":
+          Type: Token
+          AmbiguousRoleResolution: AuthenticatedRole
+
+Outputs:
+  UserPoolId:
+    Value: !Ref CognitoUserPool
+    Export:
+      Name: ${self:service}-${self:provider.stage}-UserPoolId
+  UserPoolClientId:
+    Value: !Ref CognitoUserPoolClient
+    Export:
+      Name: ${self:service}-${self:provider.stage}-UserPoolClientId
+  IdentityPoolId:
+    Value: !Ref CognitoIdentityPool
+    Export:
+      Name: ${self:service}-${self:provider.stage}-IdentityPoolId
