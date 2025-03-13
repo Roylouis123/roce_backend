@@ -13,9 +13,7 @@ export const handler = async (event) => {
           message: 'User details retrieved successfully',
         })
       };
-      
 
-      // cw
       return response;
     } catch (error) {
       console.error('Error:', error);
