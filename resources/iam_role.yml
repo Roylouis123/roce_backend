@@ -1,4 +1,16 @@
 Resources:
+  CognitoSmsRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: "CognitoSmsRole"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: "cognito-idp.amazonaws.com"
+            Action: "sts:AssumeRole"
+
   CognitoSmsPolicy:
     Type: "AWS::IAM::Policy"
     Properties:
@@ -11,4 +23,6 @@ Resources:
           - Effect: "Allow"
             Action:
               - "sns:Publish"
+              - "sns:CreateTopic"
+              - "sns:Subscribe"
             Resource: "*"
