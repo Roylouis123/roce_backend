@@ -8,6 +8,17 @@ provider:
   environment:
     REGION: ${self:provider.region}
 
+# Add layers configuration
+layers:
+  CommonLayer:
+    path: layers
+
+# Add package configuration
+package:
+  individually: true
+  exclude:
+    - layers/nodejs/node_modules/**
+
 functions:
   - ${file(resources/lambda.yml)}
 
@@ -29,6 +40,32 @@ resources:
         Type: AWS::ApiGateway::RestApi
         Properties:
           Name: ${self:service}-api-${self:provider.stage}
+          # Enable CORS for all methods
+          EndpointConfiguration:
+            Types:
+              - REGIONAL
+
+      # Add global CORS configuration
+      GatewayResponseDefault4XX:
+        Type: 'AWS::ApiGateway::GatewayResponse'
+        Properties:
+          ResponseParameters:
+            gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+            gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+            gatewayresponse.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH'"
+          ResponseType: DEFAULT_4XX
+          RestApiId: !Ref ApiGatewayRestApi
+
+      GatewayResponseDefault5XX:
+        Type: 'AWS::ApiGateway::GatewayResponse'
+        Properties:
+          ResponseParameters:
+            gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+            gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+            gatewayresponse.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH'"
+          ResponseType: DEFAULT_5XX
+          RestApiId: !Ref ApiGatewayRestApi
+          
   - Outputs:
       UserPoolId:
         Value: !Ref CognitoUserPool
@@ -42,3 +79,7 @@ resources:
         Value: !Sub "https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com/${self:provider.stage}"
         Export:
           Name: ${self:service}-ApiUrl-${self:provider.stage}
+      IdentityPoolId:
+        Value: !Ref CognitoIdentityPool
+        Export:
+          Name: ${self:service}-IdentityPoolId-${self:provider.stage}
