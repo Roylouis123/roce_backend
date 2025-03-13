@@ -64,6 +64,7 @@ function ApiCallComponent() {
   );
 }
 
+
 function App() {
   const { authStatus } = useAuthenticator((context) => [context.authStatus]);
 
