@@ -12,15 +12,9 @@ functions:
   - ${file(resources/lambda.yml)}
 
 resources:
-  - ${file(resources/iam_role.yml)}
   - ${file(resources/cognito.yml)}
-
+  - ${file(resources/iam_role.yml)}
   - Resources:
-      ApiGatewayRestApi:
-        Type: AWS::ApiGateway::RestApi
-        Properties:
-          Name: ${self:service}-api-${self:provider.stage}
-
       ApiAuthorizer:
         Type: AWS::ApiGateway::Authorizer
         Properties:
@@ -31,19 +25,20 @@ resources:
           ProviderARNs:
             - !GetAtt CognitoUserPool.Arn
 
-# Outputs should be at the root level, not inside resources
-outputs:
-  UserPoolId:
-    Value: !Ref CognitoUserPool
-    Export:
-      Name: ${self:service}-UserPoolId-${self:provider.stage}
-
-  UserPoolClientId:
-    Value: !Ref CognitoUserPoolClient
-    Export:
-      Name: ${self:service}-UserPoolClientId-${self:provider.stage}
-
-  ApiUrl:
-    Value: !Sub "https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com/${self:provider.stage}"
-    Export:
-      Name: ${self:service}-ApiUrl-${self:provider.stage}
+      ApiGatewayRestApi:
+        Type: AWS::ApiGateway::RestApi
+        Properties:
+          Name: ${self:service}-api-${self:provider.stage}
+  - Outputs:
+      UserPoolId:
+        Value: !Ref CognitoUserPool
+        Export:
+          Name: ${self:service}-UserPoolId-${self:provider.stage}
+      UserPoolClientId:
+        Value: !Ref CognitoUserPoolClient
+        Export:
+          Name: ${self:service}-UserPoolClientId-${self:provider.stage}
+      ApiUrl:
+        Value: !Sub "https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com/${self:provider.stage}"
+        Export:
+          Name: ${self:service}-ApiUrl-${self:provider.stage}

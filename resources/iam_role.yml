@@ -1,28 +1,47 @@
 Resources:
-  CognitoSmsRole:
-    Type: "AWS::IAM::Role"
+  CognitoSMSRole:
+    Type: AWS::IAM::Role
     Properties:
-      RoleName: "CognitoSmsRole"
       AssumeRolePolicyDocument:
-        Version: "2012-10-17"
+        Version: '2012-10-17'
         Statement:
-          - Effect: "Allow"
+          - Effect: Allow
             Principal:
-              Service: "cognito-idp.amazonaws.com"
-            Action: "sts:AssumeRole"
+              Service: cognito-idp.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CognitoSMSPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: '*'
 
-  CognitoSmsPolicy:
-    Type: "AWS::IAM::Policy"
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
     Properties:
-      PolicyName: "CognitoSmsPolicy"
-      Roles:
-        - !Ref CognitoSmsRole
-      PolicyDocument:
-        Version: "2012-10-17"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
         Statement:
-          - Effect: "Allow"
-            Action:
-              - "sns:Publish"
-              - "sns:CreateTopic"
-              - "sns:Subscribe"
-            Resource: "*"
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: CognitoAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cognito-idp:AdminConfirmSignUp
+                  - cognito-idp:AdminInitiateAuth
+                  - cognito-idp:AdminRespondToAuthChallenge
+                  - cognito-idp:ListUsers
+                  - cognito-idp:AdminGetUser
+                  - cognito-idp:AdminUpdateUserAttributes
+                Resource: !GetAtt CognitoUserPool.Arn

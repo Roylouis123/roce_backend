@@ -1,65 +1,85 @@
 Resources:
   CognitoUserPool:
-    Type: "AWS::Cognito::UserPool"
+    Type: AWS::Cognito::UserPool
     Properties:
-      UserPoolName: "MyUserPool"
-      Policies:
-        PasswordPolicy:
-          MinimumLength: 8
-          RequireUppercase: false
-          RequireLowercase: true
-          RequireNumbers: true
-          RequireSymbols: false
+      UserPoolName: ${self:service}-user-pool-${self:provider.stage}
       AutoVerifiedAttributes:
         - phone_number
       UsernameAttributes:
         - phone_number
       Schema:
-        - AttributeDataType: "String"
-          Name: "phone_number"
+        - Name: phone_number
+          AttributeDataType: String
+          Mutable: true
           Required: true
-      MfaConfiguration: "ON"
+      MfaConfiguration: "OFF"
       SmsConfiguration:
-        ExternalId: !Sub "${AWS::AccountId}-MyUserPool"
-        SnsCallerArn: !GetAtt CognitoSmsRole.Arn
+        ExternalId: ${self:service}-${self:provider.stage}-external
+        SnsCallerArn: !GetAtt CognitoSMSRole.Arn
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+          RequireUppercase: true
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      SmsVerificationMessage: "Your verification code is {####}"
+      EmailVerificationMessage: "Your verification code is {####}"
+      EmailVerificationSubject: "Your verification code"
 
   CognitoUserPoolClient:
-    Type: "AWS::Cognito::UserPoolClient"
+    Type: AWS::Cognito::UserPoolClient
     Properties:
-      ClientName: "MyUserPoolClient"
+      ClientName: ${self:service}-app-client-${self:provider.stage}
       UserPoolId: !Ref CognitoUserPool
+      GenerateSecret: false
       ExplicitAuthFlows:
-        - ALLOW_USER_SRP_AUTH
-        - ALLOW_CUSTOM_AUTH
-        - ALLOW_REFRESH_TOKEN_AUTH
         - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
       PreventUserExistenceErrors: ENABLED
 
-  CognitoSmsRole:
-    Type: "AWS::IAM::Role"
-    Properties:
-      RoleName: "CognitoSmsRole"
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: "Allow"
-            Principal:
-              Service: "cognito-idp.amazonaws.com"
-            Action: "sts:AssumeRole"
-
   CognitoIdentityPool:
-    Type: "AWS::Cognito::IdentityPool"
+    Type: AWS::Cognito::IdentityPool
     Properties:
-      IdentityPoolName: "MyIdentityPool"
+      IdentityPoolName: ${self:service}-identity-pool-${self:provider.stage}
       AllowUnauthenticatedIdentities: false
       CognitoIdentityProviders:
         - ClientId: !Ref CognitoUserPoolClient
           ProviderName: !GetAtt CognitoUserPool.ProviderName
+          ServerSideTokenCheck: false
 
-Outputs:
-  UserPoolId:
-    Value: !Ref CognitoUserPool
-  UserPoolClientId:
-    Value: !Ref CognitoUserPoolClient
-  IdentityPoolId:
-    Value: !Ref CognitoIdentityPool
+  CognitoAuthenticatedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                'cognito-identity.amazonaws.com:aud': !Ref CognitoIdentityPool
+              'ForAnyValue:StringLike':
+                'cognito-identity.amazonaws.com:amr': authenticated
+      Policies:
+        - PolicyName: AuthenticatedPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - mobileanalytics:PutEvents
+                  - cognito-sync:*
+                  - cognito-identity:*
+                Resource: '*'
+
+  IdentityPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleMapping
+    Properties:
+      IdentityPoolId: !Ref CognitoIdentityPool
+      Roles:
+        authenticated: !GetAtt CognitoAuthenticatedRole.Arn
