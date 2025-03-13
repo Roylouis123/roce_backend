@@ -8,6 +8,21 @@ provider:
   environment:
     REGION: ${self:provider.region}
 
+# Add layers configuration
+layers:
+  CommonLayer:
+    path: layers
+
+# Add package configuration
+package:
+  individually: true
+  exclude:
+    - layers/nodejs/node_modules/**
+    - resources/**
+    - cloudFormation/**
+    - lambda/**
+    - ui/**
+
 functions:
   - ${file(resources/lambda.yml)}
 
