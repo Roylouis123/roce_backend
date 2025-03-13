@@ -1,6 +1,6 @@
 getUserDetails:
     handler: lambda/getUserDetails.handler
-    name: getUserDetails-${self:provider.stage}
+    name: getUserDetails-dev
     layers:
       - { Ref: CommonLayerLambdaLayer }
     role: !GetAtt getUserDetailsRole.Arn
@@ -14,4 +14,7 @@ getUserDetails:
             type: COGNITO_USER_POOLS
             authorizerId: !Ref ApiAuthorizer
     environment:
-      stage: ${self:provider.stage}
+      stage: dev
+    package:
+      include:
+        - lambda/getUserDetails.mjs

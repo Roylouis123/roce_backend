@@ -1,4 +1,4 @@
-service: auth-service
+service: auth-service-aayu
 
 provider:
   name: aws
@@ -20,6 +20,13 @@ package:
     - cloudFormation/**
     - lambda/**
     - ui/**
+    - .github/**
+    - scripts/**
+    - index.js
+    - lambda.yml
+    - package.json
+    - README.md
+    - serverless.yml
 
 functions:
   - ${file(resources/lambda.yml)}
