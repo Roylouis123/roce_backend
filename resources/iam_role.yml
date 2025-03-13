@@ -35,10 +35,10 @@ Resources:
             Action: sts:AssumeRoleWithWebIdentity
             Condition:
               StringEquals:
-                "cognito-identity.amazonaws.com:aud":
-                  Fn::ImportValue: ${self:service}-${self:provider.stage}-IdentityPoolId
+                cognito-identity.amazonaws.com:aud:
+                  !ImportValue "${self:service}-${self:provider.stage}-IdentityPoolId"
               "ForAnyValue:StringLike":
-                "cognito-identity.amazonaws.com:amr": authenticated
+                cognito-identity.amazonaws.com:amr: authenticated
       Policies:
         - PolicyName: ${self:service}-auth-policy-${self:provider.stage}
           PolicyDocument:
@@ -56,6 +56,7 @@ Outputs:
     Value: !GetAtt SNSRole.Arn
     Export:
       Name: ${self:service}-${self:provider.stage}-SNSRoleArn
+
   AuthRoleArn:
     Value: !GetAtt AuthenticatedRole.Arn
     Export:
