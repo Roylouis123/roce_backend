@@ -73,7 +73,8 @@ Resources:
       Roles:
         authenticated: ${ssm:/${self:service}/${self:provider.stage}/auth-role-arn}
       RoleMappings:
-        !Sub "cognito-idp.${aws:region}.amazonaws.com/${CognitoUserPool}:!Ref CognitoUserPoolClient":
+        # Fixed syntax: Using !Sub as a single-line key with proper mapping
+        - !Sub "cognito-idp.${aws:region}.amazonaws.com/${CognitoUserPool}:${CognitoUserPoolClient}"
           Type: Token
           AmbiguousRoleResolution: AuthenticatedRole
 
