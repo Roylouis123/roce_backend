@@ -73,11 +73,11 @@ Resources:
       Roles:
         authenticated: ${ssm:/${self:service}/${self:provider.stage}/auth-role-arn}
       RoleMappings:
-        - !Sub "cognito-idp.${aws:region}.amazonaws.com/${CognitoUserPool}:${CognitoUserPoolClient}"
-          # Properly indented properties (aligned with the !Sub line)
+        cognitoMapping:
           Type: Token
           AmbiguousRoleResolution: AuthenticatedRole
-
+          IdentityProvider: !Sub "cognito-idp.${aws:region}.amazonaws.com/${CognitoUserPool}:${CognitoUserPoolClient}"
+            
 Outputs:
   UserPoolId:
     Value: !Ref CognitoUserPool
