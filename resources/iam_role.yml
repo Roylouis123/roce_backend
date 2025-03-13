@@ -46,38 +46,26 @@ Resources:
                   - cognito-idp:AdminUpdateUserAttributes
                 Resource: !GetAtt CognitoUserPool.Arn
 
-    getUserDetailsRole:
-      Type: AWS::IAM::Role
-      Properties:
-        AssumeRolePolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-            - Effect: Allow
-              Principal:
-                Service: lambda.amazonaws.com
-              Action: sts:AssumeRole
-        RoleName: getUserDetails-role-${self:provider.stage}
-        Policies:
-          - PolicyName: CloudWatchLogsAccess
-            PolicyDocument:
-              Version: '2012-10-17'
-              Statement:
-                - Effect: Allow
-                  Action:
-                    - logs:CreateLogGroup
-                    - logs:CreateLogStream
-                    - logs:PutLogEvents
-                  Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/getUserDetails-${self:provider.stage}:*'
-    ApiAuthorizer:
-      Type: AWS::ApiGateway::Authorizer
-      Properties:
-        Name: CognitoAuthorizer
-        Type: COGNITO_USER_POOLS
-        IdentitySource: method.request.header.Authorization
-        RestApiId: !Ref ApiGatewayRestApi
-        ProviderARNs:
-          - !GetAtt CognitoUserPool.Arn
-    ApiGatewayRestApi:
-      Type: AWS::ApiGateway::RestApi
-      Properties:
-        Name: ${self:service}-api-${self:provider.stage}
+
+  getUserDetailsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      RoleName: getUserDetails-role-${self:provider.stage}
+      Policies:
+        - PolicyName: CloudWatchLogsAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/getUserDetails-${self:provider.stage}:*'
