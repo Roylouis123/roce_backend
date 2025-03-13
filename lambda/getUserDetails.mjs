@@ -1,7 +1,5 @@
 export const handler = async (event) => {
     try {
-      // Get Cognito user info from the event
-      const user = event.requestContext.authorizer.claims;
       
       const response = {
         statusCode: 200,
@@ -10,7 +8,10 @@ export const handler = async (event) => {
           'Access-Control-Allow-Origin': '*'
         },
         body: JSON.stringify({
-          message: 'User details retrieved successfully',
+          data:{
+            name:"roy",
+            age:35
+          }
         })
       };
 

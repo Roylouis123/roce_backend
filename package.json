@@ -3,10 +3,13 @@
     "version": "1.0.0",
     "description": "Serverless Auth Service",
     "scripts": {
-      "deploy": "serverless deploy --stage dev",
-      "remove": "serverless remove --stage dev"
+        "deploy": "serverless deploy --stage dev",
+        "remove": "serverless remove --stage dev"
     },
     "devDependencies": {
-      "serverless": "^3.38.0"
+        "serverless": "^3.38.0"
+    },
+    "dependencies": {
+        "lodash": "^4.17.21"
     }
-  }
+}
