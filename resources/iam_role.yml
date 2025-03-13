@@ -1,62 +1,14 @@
 Resources:
-  # SNS Role for Cognito SMS
-  SNSRole:
-    Type: AWS::IAM::Role
+  CognitoSmsPolicy:
+    Type: "AWS::IAM::Policy"
     Properties:
-      RoleName: ${self:service}-sns-role-${self:provider.stage}
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+      PolicyName: "CognitoSmsPolicy"
+      Roles:
+        - !Ref CognitoSmsRole
+      PolicyDocument:
+        Version: "2012-10-17"
         Statement:
-          - Effect: Allow
-            Principal:
-              Service: cognito-idp.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: SNSPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - sns:Publish
-                Resource: "*"
-
-  # Authenticated Role for Identity Pool
-  AuthenticatedRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: ${self:service}-auth-role-${self:provider.stage}
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Federated: cognito-identity.amazonaws.com
-            Action: sts:AssumeRoleWithWebIdentity
-            Condition:
-              StringEquals:
-                "cognito-identity.amazonaws.com:aud":
-                  Fn::ImportValue: ${self:service}-IdentityPoolId-${self:provider.stage}
-              "ForAnyValue:StringLike":
-                "cognito-identity.amazonaws.com:amr": authenticated
-      Policies:
-        - PolicyName: ${self:service}-auth-policy-${self:provider.stage}
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - mobileanalytics:PutEvents
-                  - cognito-sync:*
-                  - cognito-identity:*
-                Resource: "*"
-
-Outputs:
-  SNSRoleArn:
-    Value: !GetAtt SNSRole.Arn
-    Export:
-      Name: ${self:service}-SNSRoleArn-${self:provider.stage}
-  AuthRoleArn:
-    Value: !GetAtt AuthenticatedRole.Arn
-    Export:
-      Name: ${self:service}-AuthRoleArn-${self:provider.stage}
+          - Effect: "Allow"
+            Action:
+              - "sns:Publish"
+            Resource: "*"

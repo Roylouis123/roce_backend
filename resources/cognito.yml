@@ -1,93 +1,68 @@
 Resources:
-  # User Pool with SMS verification
   CognitoUserPool:
-    Type: AWS::Cognito::UserPool
+    Type: "AWS::Cognito::UserPool"
     Properties:
-      UserPoolName: ${self:service}-user-pool-${self:provider.stage}
-      UsernameAttributes:
-        - phone_number
-      AutoVerifiedAttributes:
-        - phone_number
+      UserPoolName: "MyUserPool"
       Policies:
         PasswordPolicy:
           MinimumLength: 8
+          RequireUppercase: false
           RequireLowercase: true
           RequireNumbers: true
           RequireSymbols: false
-          RequireUppercase: true
+      AutoVerifiedAttributes:
+        - phone_number
+      UsernameAttributes:
+        - phone_number
       Schema:
-        - Name: phone_number
-          AttributeDataType: String
-          Mutable: true
+        - AttributeDataType: "String"
+          Name: "phone_number"
           Required: true
+        - AttributeDataType: "String"
+          Name: "password"
+          Required: true
+      MfaConfiguration: "ON"
       SmsConfiguration:
-        SnsCallerArn: ${ssm:/${self:service}/${self:provider.stage}/sns-role-arn}
-        ExternalId: ${self:service}-external-id-${self:provider.stage}
-      MfaConfiguration: OFF
-      AccountRecoverySetting:
-        RecoveryMechanisms:
-          - Name: verified_phone_number
-            Priority: 1
-      VerificationMessageTemplate:
-        SmsMessage: "Your verification code is {####}."
-        DefaultEmailOption: CONFIRM_WITH_CODE
-      SmsVerificationMessage: "Your verification code is {####}."
-      AdminCreateUserConfig:
-        AllowAdminCreateUserOnly: false
-        InviteMessageTemplate:
-          SMSMessage: "Your username is {username} and temporary password is {####}."
+        ExternalId: !Sub "${AWS::AccountId}-MyUserPool"
+        SnsCallerArn: !GetAtt CognitoSmsRole.Arn
 
-  # User Pool Client
   CognitoUserPoolClient:
-    Type: AWS::Cognito::UserPoolClient
+    Type: "AWS::Cognito::UserPoolClient"
     Properties:
-      ClientName: ${self:service}-client-${self:provider.stage}
+      ClientName: "MyUserPoolClient"
       UserPoolId: !Ref CognitoUserPool
       ExplicitAuthFlows:
-        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_CUSTOM_AUTH
         - ALLOW_REFRESH_TOKEN_AUTH
-      GenerateSecret: false
-      AccessTokenValidity: 5
-      IdTokenValidity: 5
-      TokenValidityUnits:
-        AccessToken: hours
-        IdToken: hours
-      RefreshTokenValidity: 30
+        - ALLOW_USER_PASSWORD_AUTH
       PreventUserExistenceErrors: ENABLED
 
-  # Identity Pool
-  CognitoIdentityPool:
-    Type: AWS::Cognito::IdentityPool
+  CognitoSmsRole:
+    Type: "AWS::IAM::Role"
     Properties:
-      IdentityPoolName: ${self:service}-identity-pool-${self:provider.stage}
+      RoleName: "CognitoSmsRole"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: "cognito-idp.amazonaws.com"
+            Action: "sts:AssumeRole"
+
+  CognitoIdentityPool:
+    Type: "AWS::Cognito::IdentityPool"
+    Properties:
+      IdentityPoolName: "MyIdentityPool"
       AllowUnauthenticatedIdentities: false
       CognitoIdentityProviders:
         - ClientId: !Ref CognitoUserPoolClient
           ProviderName: !GetAtt CognitoUserPool.ProviderName
 
-  # Identity Pool Role Attachment
-  CognitoIdentityPoolRoles:
-    Type: AWS::Cognito::IdentityPoolRoleAttachment
-    Properties:
-      IdentityPoolId: !Ref CognitoIdentityPool
-      Roles:
-        authenticated: ${ssm:/${self:service}/${self:provider.stage}/auth-role-arn}
-      RoleMappings:
-        cognitoMapping:
-          Type: Token
-          AmbiguousRoleResolution: AuthenticatedRole
-          IdentityProvider: !Sub "cognito-idp.${aws:region}.amazonaws.com/${CognitoUserPool}:${CognitoUserPoolClient}"
-            
 Outputs:
   UserPoolId:
     Value: !Ref CognitoUserPool
-    Export:
-      Name: ${self:service}-${self:provider.stage}-UserPoolId
   UserPoolClientId:
     Value: !Ref CognitoUserPoolClient
-    Export:
-      Name: ${self:service}-${self:provider.stage}-UserPoolClientId
   IdentityPoolId:
     Value: !Ref CognitoIdentityPool
-    Export:
-      Name: ${self:service}-${self:provider.stage}-IdentityPoolId
