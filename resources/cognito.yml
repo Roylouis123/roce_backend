@@ -78,7 +78,7 @@ Resources:
                 Resource: '*'
 
   IdentityPoolRoleAttachment:
-    Type: AWS::Cognito::IdentityPoolRoleMapping
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
     Properties:
       IdentityPoolId: !Ref CognitoIdentityPool
       Roles:
