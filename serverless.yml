@@ -8,12 +8,10 @@ provider:
   environment:
     REGION: ${self:provider.region}
 
-# Add layers configuration
 layers:
   CommonLayer:
     path: layers
 
-# Add package configuration
 package:
   individually: true
   exclude:

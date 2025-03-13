@@ -1,10 +1,17 @@
 getUserDetails:
-  handler: lambda/getUserDetails.handler
-  events:
-    - http:
-        path: /getUserDetails
-        method: post
-        cors: true
-        authorizer:
-          type: COGNITO_USER_POOLS
-          authorizerId: !Ref ApiAuthorizer
+    handler: lambda/getUserDetails.handler
+    name: getUserDetails-${self:provider.stage}
+    layers:
+      - { Ref: CommonLayerLambdaLayer }
+    role: !GetAtt getUserDetailsRole.Arn
+    events:
+      - http:
+          path: /getUserDetails
+          method: post
+          cors: true
+          integration: lambda
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiAuthorizer
+    environment:
+      stage: ${self:provider.stage}
