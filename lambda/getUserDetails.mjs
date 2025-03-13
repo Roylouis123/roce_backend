@@ -14,6 +14,8 @@ export const handler = async (event) => {
         })
       };
       
+
+      // cw
       return response;
     } catch (error) {
       console.error('Error:', error);
