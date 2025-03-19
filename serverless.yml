@@ -7,7 +7,6 @@ provider:
   region: ${self:custom.stages.${self:provider.stage}.region}
   environment:
     COGNITO_CLIENT_ID: ${param:COGNITO_CLIENT_ID}
-    # Add other environment-specific variables as needed
 
 custom:
   stages:
