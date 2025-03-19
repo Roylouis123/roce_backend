@@ -74,3 +74,4 @@ resources:
         Value: !Sub "https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com/${self:provider.stage}"
         Export:
           Name: ${self:service}-ApiUrl-${self:provider.stage}
+          
