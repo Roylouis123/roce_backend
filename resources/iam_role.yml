@@ -2,7 +2,7 @@ Resources:
   CognitoSMSRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: ${self:service}-sms-role-${self:provider.stage}  # Added unique role name
+      RoleName: ${self:service}-sms-role-${self:provider.stage}
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -18,12 +18,12 @@ Resources:
               - Effect: Allow
                 Action:
                   - sns:Publish
-                Resource: '*'  # Consider restricting to specific SNS topic ARN if applicable
+                Resource: '*'  # Replace with specific SNS ARN if applicable
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: ${self:service}-lambda-execution-role-${self:provider.stage}  # Added unique role name
+      RoleName: ${self:service}-lambda-execution-role-${self:provider.stage}
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -46,12 +46,25 @@ Resources:
                   - cognito-idp:ListUsers
                   - cognito-idp:AdminGetUser
                   - cognito-idp:AdminUpdateUserAttributes
-                Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${!Ref CognitoUserPool}'  # Corrected ARN syntax
+                Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPool}"
+
+        - PolicyName: SSMParameterAccess  # Added policy for reading SSM parameters
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                  - ssm:GetParametersByPath
+                Resource:
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${self:provider.stage}/cognito/userpool/id"
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${self:provider.stage}/cognito/client/id"
 
   getUserDetailsRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: ${self:service}-getUserDetails-role-${self:provider.stage}  # Added service prefix for consistency
+      RoleName: ${self:service}-getUserDetails-role-${self:provider.stage}
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -69,8 +82,9 @@ Resources:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/getUserDetails-${self:provider.stage}:*'
-        - PolicyName: CognitoReadAccess  # Added policy for Cognito access
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/getUserDetails-${self:provider.stage}:*"
+
+        - PolicyName: CognitoReadAccess
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -78,4 +92,17 @@ Resources:
                 Action:
                   - cognito-idp:AdminGetUser
                   - cognito-idp:ListUsers
-                Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${!Ref CognitoUserPool}'
+                Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPool}"
+
+        - PolicyName: SSMParameterAccess  # Allow reading Cognito IDs from SSM
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                  - ssm:GetParametersByPath
+                Resource:
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${self:provider.stage}/cognito/userpool/id"
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${self:provider.stage}/cognito/client/id"

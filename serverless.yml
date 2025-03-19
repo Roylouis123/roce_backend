@@ -3,10 +3,11 @@ service: auth-service-aayu
 provider:
   name: aws
   runtime: nodejs18.x
-  stage: ${opt:stage, 'dev'}  # Default to dev if no stage specified
+  stage: ${opt:stage, 'dev'}  # Default to 'dev' if no stage is specified
   region: ${self:custom.stages.${self:provider.stage}.region}
   environment:
-    COGNITO_CLIENT_ID: ${param:COGNITO_CLIENT_ID}
+    COGNITO_USER_POOL_ID: ${ssm:/cognito/${self:provider.stage}/userpool/id}
+    COGNITO_CLIENT_ID: ${ssm:/cognito/${self:provider.stage}/client/id}
 
 custom:
   stages:
@@ -74,4 +75,3 @@ resources:
         Value: !Sub "https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com/${self:provider.stage}"
         Export:
           Name: ${self:service}-ApiUrl-${self:provider.stage}
-          
