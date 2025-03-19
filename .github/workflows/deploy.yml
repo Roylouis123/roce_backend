@@ -26,13 +26,12 @@ jobs:
       - name: Install dependencies
         run: npm install
         
-        
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets[format('AWS_ACCESS_KEY_ID_{0}', github.ref_name == 'dev' ? 'DEV' : github.ref_name == 'test' ? 'TEST' : 'PROD')] }}
           aws-secret-access-key: ${{ secrets[format('AWS_SECRET_ACCESS_KEY_{0}', github.ref_name == 'dev' ? 'DEV' : github.ref_name == 'test' ? 'TEST' : 'PROD')] }}
-          aws-region: ${{ github.ref_name == 'prod' && 'us-west-2' || 'us-east-1' }}
+          aws-region: ${{ github.ref_name == 'prod' && 'us-west-1' || 'us-east-2' }}
           
       - name: Deploy to AWS
         run: |
