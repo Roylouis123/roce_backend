@@ -10,32 +10,50 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
-          
+
       - name: Install Serverless Framework
         run: npm install -g serverless
-        
+
       - name: Install dependencies
         run: npm install
-        
+
+      - name: Set environment variables
+        run: |
+          if [ "${{ github.ref_name }}" == "dev" ]; then
+            echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID_DEV }}" >> $GITHUB_ENV
+            echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}" >> $GITHUB_ENV
+            echo "COGNITO_USER_POOL_ID=${{ secrets.COGNITO_USER_POOL_ID_DEV }}" >> $GITHUB_ENV
+            echo "COGNITO_CLIENT_ID=${{ secrets.COGNITO_CLIENT_ID_DEV }}" >> $GITHUB_ENV
+          elif [ "${{ github.ref_name }}" == "test" ]; then
+            echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID_TEST }}" >> $GITHUB_ENV
+            echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY_TEST }}" >> $GITHUB_ENV
+            echo "COGNITO_USER_POOL_ID=${{ secrets.COGNITO_USER_POOL_ID_TEST }}" >> $GITHUB_ENV
+            echo "COGNITO_CLIENT_ID=${{ secrets.COGNITO_CLIENT_ID_TEST }}" >> $GITHUB_ENV
+          else
+            echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID_PROD }}" >> $GITHUB_ENV
+            echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}" >> $GITHUB_ENV
+            echo "COGNITO_USER_POOL_ID=${{ secrets.COGNITO_USER_POOL_ID_PROD }}" >> $GITHUB_ENV
+            echo "COGNITO_CLIENT_ID=${{ secrets.COGNITO_CLIENT_ID_PROD }}" >> $GITHUB_ENV
+          fi
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{ secrets[format('AWS_ACCESS_KEY_ID_{0}', github.ref_name == 'dev' ? 'DEV' : github.ref_name == 'test' ? 'TEST' : 'PROD')] }}
-          aws-secret-access-key: ${{ secrets[format('AWS_SECRET_ACCESS_KEY_{0}', github.ref_name == 'dev' ? 'DEV' : github.ref_name == 'test' ? 'TEST' : 'PROD')] }}
-          aws-region: ${{ github.ref_name == 'prod' && 'us-west-1' || 'us-east-2' }}
-          
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ github.ref_name == 'prod' && 'us-west-1' || 'us-east-1' }}
+
       - name: Deploy to AWS
         run: |
-          STAGE=${{ github.ref_name }}
-          sls deploy --stage $STAGE \
-            --param COGNITO_USER_POOL_ID=${{ secrets[format('COGNITO_USER_POOL_ID_{0}', github.ref_name == 'dev' ? 'DEV' : github.ref_name == 'test' ? 'TEST' : 'PROD')] }} \
-            --param COGNITO_CLIENT_ID=${{ secrets[format('COGNITO_CLIENT_ID_{0}', github.ref_name == 'dev' ? 'DEV' : github.ref_name == 'test' ? 'TEST' : 'PROD')] }}
+          sls deploy --stage ${{ github.ref_name }} \
+            --param COGNITO_USER_POOL_ID=${{ env.COGNITO_USER_POOL_ID }} \
+            --param COGNITO_CLIENT_ID=${{ env.COGNITO_CLIENT_ID }}
