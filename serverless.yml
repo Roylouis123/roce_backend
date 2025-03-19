@@ -6,8 +6,8 @@ provider:
   stage: ${opt:stage, 'dev'}  # Default to 'dev' if no stage is specified
   region: ${self:custom.stages.${self:provider.stage}.region}
   environment:
-    COGNITO_USER_POOL_ID: ${ssm:/cognito/${self:provider.stage}/userpool/id}
-    COGNITO_CLIENT_ID: ${ssm:/cognito/${self:provider.stage}/client/id}
+    COGNITO_USER_POOL_ID: ${ssm:/dev/cognito/userpool/id, ssm-secure}
+    COGNITO_CLIENT_ID: ${ssm:/dev/cognito/client/id, ssm-secure}
 
 custom:
   stages:
