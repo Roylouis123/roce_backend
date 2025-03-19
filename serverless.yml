@@ -3,10 +3,23 @@ service: auth-service-aayu
 provider:
   name: aws
   runtime: nodejs18.x
-  region: us-east-1
-  stage: ${opt:stage, 'dev'}
+  stage: ${opt:stage, 'dev'}  # Default to dev if no stage specified
+  region: ${self:custom.stages.${self:provider.stage}.region}
   environment:
-    REGION: ${self:provider.region}
+    COGNITO_CLIENT_ID: ${param:COGNITO_CLIENT_ID}
+    # Add other environment-specific variables as needed
+
+custom:
+  stages:
+    dev:
+      region: us-east-1
+      profile: devProfile
+    test:
+      region: us-east-1
+      profile: testProfile
+    prod:
+      region: us-west-2
+      profile: prodProfile
 
 layers:
   CommonLayer:
