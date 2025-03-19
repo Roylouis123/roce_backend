@@ -12,7 +12,7 @@ Resources:
           AttributeDataType: String
           Mutable: true
           Required: true
-      MfaConfiguration: "OFF"
+      MfaConfiguration: OFF  # Simplified, no quotes needed
       SmsConfiguration:
         ExternalId: ${self:service}-${self:provider.stage}-external
         SnsCallerArn: !GetAtt CognitoSMSRole.Arn
@@ -48,12 +48,13 @@ Resources:
       AllowUnauthenticatedIdentities: false
       CognitoIdentityProviders:
         - ClientId: !Ref CognitoUserPoolClient
-          ProviderName: !GetAtt CognitoUserPool.ProviderName
+          ProviderName: !Sub cognito-idp.${self:provider.region}.amazonaws.com/${!Ref CognitoUserPool}
           ServerSideTokenCheck: false
 
   CognitoAuthenticatedRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: ${self:service}-authenticated-role-${self:provider.stage}  # Added unique role name
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -84,3 +85,25 @@ Resources:
       IdentityPoolId: !Ref CognitoIdentityPool
       Roles:
         authenticated: !GetAtt CognitoAuthenticatedRole.Arn
+
+  # Added SNS Role for SMS
+  CognitoSMSRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ${self:service}-sms-role-${self:provider.stage}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cognito-idp.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CognitoSMSPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: '*'

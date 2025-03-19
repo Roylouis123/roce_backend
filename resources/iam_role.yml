@@ -2,6 +2,7 @@ Resources:
   CognitoSMSRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: ${self:service}-sms-role-${self:provider.stage}  # Added unique role name
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -17,11 +18,12 @@ Resources:
               - Effect: Allow
                 Action:
                   - sns:Publish
-                Resource: '*'
+                Resource: '*'  # Consider restricting to specific SNS topic ARN if applicable
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: ${self:service}-lambda-execution-role-${self:provider.stage}  # Added unique role name
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -44,12 +46,12 @@ Resources:
                   - cognito-idp:ListUsers
                   - cognito-idp:AdminGetUser
                   - cognito-idp:AdminUpdateUserAttributes
-                Resource: !GetAtt CognitoUserPool.Arn
-
+                Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${!Ref CognitoUserPool}'  # Corrected ARN syntax
 
   getUserDetailsRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: ${self:service}-getUserDetails-role-${self:provider.stage}  # Added service prefix for consistency
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -57,7 +59,6 @@ Resources:
             Principal:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
-      RoleName: getUserDetails-role-${self:provider.stage}
       Policies:
         - PolicyName: CloudWatchLogsAccess
           PolicyDocument:
@@ -69,3 +70,12 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/getUserDetails-${self:provider.stage}:*'
+        - PolicyName: CognitoReadAccess  # Added policy for Cognito access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cognito-idp:AdminGetUser
+                  - cognito-idp:ListUsers
+                Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${!Ref CognitoUserPool}'

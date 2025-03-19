@@ -1,20 +1,21 @@
 getUserDetails:
-    handler: lambda/getUserDetails.handler
-    name: getUserDetails-dev
-    layers:
-      - { Ref: CommonLayerLambdaLayer }
-    role: !GetAtt getUserDetailsRole.Arn
-    events:
-      - http:
-          path: /getUserDetails
-          method: post
-          cors: true
-          integration: lambda
-          authorizer:
-            type: COGNITO_USER_POOLS
-            authorizerId: !Ref ApiAuthorizer
-    environment:
-      stage: dev
-    package:
-      include:
-        - lambda/getUserDetails.mjs
+  handler: lambda/getUserDetails.handler
+  name: ${self:service}-getUserDetails-${self:provider.stage}  # Dynamic name based on stage
+  layers:
+    - { Ref: CommonLayerLambdaLayer }
+  role: !GetAtt getUserDetailsRole.Arn
+  events:
+    - http:
+        path: /getUserDetails
+        method: post
+        cors: true
+        integration: LAMBDA  # Standardized to uppercase
+        authorizer:
+          type: COGNITO_USER_POOLS
+          authorizerId: !Ref ApiAuthorizer
+  environment:
+    STAGE: ${self:provider.stage}  # Dynamic stage variable
+    COGNITO_USER_POOL_ID: ${param:COGNITO_USER_POOL_ID}  # From GitHub Secrets
+  package:
+    include:
+      - lambda/getUserDetails.mjs
